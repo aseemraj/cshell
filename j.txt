@@ -1,0 +1,11 @@
+a.c
+a.out
+j.txt
+out.txt
+shell.c
+shell.o
+tsh.c
+tsh.o
+t.txt
+unixshell.c
+unixshell.o
