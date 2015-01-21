@@ -174,33 +174,35 @@ void check_redirection(char** arguments)
     }
 }
 
-void run_pipe(char* arg[])
+void run_pipe(char* arg1[], char* arg2[])
 {
     int pfds[2];
     int k = pipe(pfds);
     // printf("this: %s", *arg);
-    if(!fork())
+    pid_t chp = fork();
+    int stat;
+    if(!chp)
     {
         //child code
         close(1);       /* close normal stdout */
-        dup(pfds[1]);   /* make stdout same as pfds[1] */
+        dup2(pfds[1], 1);   /* make stdout same as pfds[1] */
         close(pfds[0]); /* we don't need this */
-        printf("this: %s\n", *(arg));
-        execlp(arg[0], arg[0], NULL);
+        execvp(arg1[0], arg1);
 
         //only runs if exec fails
-        fprintf(stderr, "%s: command not found\n",arg[0]);
+        fprintf(stderr, "%s: command not found\n",arg1[0]);
         return;
     }
     else
     {
+        waitpid(chp, &stat, 0);
         close(0);       /* close normal stdin */
-        dup(pfds[0]);   /* make stdin same as pfds[0] */
+        dup2(pfds[0], 0);   /* make stdin same as pfds[0] */
         close(pfds[1]); /* we don't need this */
-        execlp(arg[2], arg[2], NULL);
+        execvp(arg2[0], arg2);
 
         //only runs if exec fails
-        fprintf(stderr, "%s: Command not found.\n",arg[2]);
+        fprintf(stderr, "%s: Command not found.\n",arg2[0]);
         return;
     }
 }
@@ -208,17 +210,26 @@ void run_pipe(char* arg[])
 void check_piping(char** arguments)
 {
     char** arg = arguments;   //point to first element of array
+    char* targ1[10];
+    char* targ2[10];
+    int i = 0, f = 0;
     while(*arg)
     {
-        // printf("lala: %s\n", *arg);
-        if (strcmp(*arg, "|") == 0)
+        if(strcmp(*arg, "|") == 0)
         {
-            printf("In\n");
-            run_pipe(arguments);
-            return;
+            f = 1;
+            targ1[i] = NULL;
+            i = 0;
         }
+        if(f==0)
+            targ1[i++] = *arg;
+        else if(strcmp(*arg, "|") != 0)
+            targ2[i++] = *arg;
         arg++;
     }
+    if(f)
+        run_pipe(targ1, targ2);
+    return;
 }
 
 void processDeleteCmd(char *secondCmd)
@@ -315,6 +326,7 @@ int main(int argc, char** argv)
                 if(history[n])
                     printf("History command  %d: %s", n, history[n]);
             }
+            continue;
         }
         
         int numArgs = countArgs(buffer);
